@@ -76,7 +76,7 @@ class Home extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            DownloaderIconLarge(
+                            DownloaderIcon.large(
                               icon: Icons.chevron_right_rounded,
                             ),
                           ],

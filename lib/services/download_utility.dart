@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:downloader/models/download_configs.dart';
+import 'package:downloader/models/download_progress.dart';
+import 'package:downloader/services/extensions.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -18,7 +20,7 @@ class FileDownloaderUtility {
   Future<DownloadProgress> download() async {
     try {
       if (_bytes == null) {
-        _bytes = await configs.getBytes();
+        _bytes = await Uri.parse(configs.url).getDownloadSize();
       }
 
       if (_bytes == null || _bytes == 0) {
@@ -63,16 +65,18 @@ class FileDownloaderUtility {
 
       final completer = Completer<File>();
 
-      final progress = DownloadProgress(
-        chunks: results,
-        totalSize: totalBytes,
-        configs: configs,
-        future: completer.future,
-      );
+      final progress = DownloadProgress()
+        ..chunks = results
+        ..totalSize = totalBytes
+        ..configs = configs
+        ..future = completer.future;
 
       Future.wait(results.where((e) => e.future != null).map((e) => e.future!))
           .then((value) async {
-        final op = File(configs.savePath);
+        final op = File(path.join(
+          configs.savePath,
+          configs.url.split("?").first.split("#").first.split("/").last,
+        ));
 
         progress.value = 0;
 
@@ -104,15 +108,13 @@ class FileDownloaderUtility {
 
       return progress;
     } catch (e) {
-      print(e);
-
       throw 'Something went wrong.';
     }
   }
 
   Future<ChunkProgress> _downloadChunk(
       int startByte, int endByte, int chunkId) async {
-    final response = await HttpClient().getUrl(configs.url);
+    final response = await HttpClient().getUrl(Uri.parse(configs.url));
 
     response.headers.add('range', 'bytes=$startByte-$endByte');
 
@@ -134,13 +136,13 @@ class FileDownloaderUtility {
       file.createSync(recursive: true);
     }
 
-    final chunk = ChunkProgress(
-      id: chunkId,
-      start: startByte,
-      end: endByte,
-      filePath: file.path,
-      future: completer.future,
-    );
+    final chunk = ChunkProgress()
+      ..id = chunkId
+      ..start = startByte
+      ..end = endByte
+      ..filePath = file.path
+      ..future = completer.future
+      ..value = 0;
 
     final totalLen = endByte - startByte + 1;
 
@@ -152,8 +154,6 @@ class FileDownloaderUtility {
       progress += event.length;
 
       chunk.value = progress / totalLen;
-      print(
-          "Chunk - $chunkId, Downloaded: ${event.length}, Progress: ${chunk.value}");
     });
 
     stream.toList().then((value) async {
@@ -166,7 +166,6 @@ class FileDownloaderUtility {
       if (!completer.isCompleted) {
         completer.complete(file);
       }
-      print('Downloaded chunk $chunkId');
     });
 
     return chunk;

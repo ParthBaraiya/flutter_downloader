@@ -25,6 +25,15 @@ class NavigationService {
           );
         },
       ),
+      // GoRoute(
+      //   path: DownloadUtilScreens.download.url,
+      //   name: DownloadUtilScreens.download.name,
+      //   pageBuilder: (_, state) {
+      //     return NoTransitionPage(
+      //       child: ,
+      //     );
+      //   },
+      // ),
     ],
   );
 }

@@ -1,8 +1,8 @@
 import 'package:downloader/models/download_configs.dart';
+import 'package:downloader/models/download_progress.dart';
 import 'package:downloader/screens/download_url/store/download_url_screen_store.dart';
 import 'package:downloader/services/download_utility.dart';
 import 'package:downloader/services/navigation_service/navigation_service.dart';
-import 'package:downloader/views/icons.dart';
 import 'package:downloader/views/scaffold_title.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -30,28 +30,33 @@ class _DownloadUrlScreenState extends State<DownloadUrlScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InkWell(
-                  onTap: () => DownloadUtilScreens.home.go(context),
-                  borderRadius: BorderRadius.circular(30),
-                  child: Padding(
-                    padding: EdgeInsets.all(10),
-                    child: DownloaderIconLarge(
-                      icon: Icons.arrow_back,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20),
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 20,
-                  ),
-                  child: ScaffoldTitle(title: "File Downloader"),
-                ),
-              ],
+            // Column(
+            //   crossAxisAlignment: CrossAxisAlignment.start,
+            //   mainAxisSize: MainAxisSize.min,
+            //   children: [
+            //     InkWell(
+            //       onTap: () =>,
+            //       borderRadius: BorderRadius.circular(30),
+            //       child: Padding(
+            //         padding: EdgeInsets.all(10),
+            //         child: DownloaderIconLarge(
+            //           icon: Icons.arrow_back,
+            //         ),
+            //       ),
+            //     ),
+            //     SizedBox(height: 20),
+            //     Padding(
+            //       padding: EdgeInsets.symmetric(
+            //         horizontal: 20,
+            //       ),
+            //       child: ScaffoldTitle(title: ""),
+            //     ),
+            //   ],
+            // ),
+
+            ScaffoldTitleWithBack(
+              onBack: () => DownloadUtilScreens.home.go(context),
+              title: "File Downloader",
             ),
 
             SizedBox(height: 40),
@@ -183,50 +188,59 @@ class _DownloadUrlScreenState extends State<DownloadUrlScreen> {
               ],
             ),
 
+            SizedBox(height: 40),
+            Align(
+              alignment: Alignment.center,
+              child: ElevatedButton(
+                onPressed: () => store.download(context),
+                child: Text("Start Download"),
+              ),
+            ),
+
             // ElevatedButton(
             //   onPressed: _startDownload,
             //   child: Text(
             //     "Start Download...",
             //   ),
             // ),
-            if (_progress != null)
-              Expanded(
-                child: ValueListenableBuilder(
-                  valueListenable: _progress!,
-                  builder: (_, snapshot, __) {
-                    if (snapshot >= 0) {
-                      return Text(
-                        "Creating File: ${((snapshot * 100) / _progress!.totalSize).toStringAsFixed(0)}",
-                      );
-                    }
-
-                    return ListView(
-                      children: _progress!.chunks.map((e) {
-                        return ValueListenableBuilder(
-                          valueListenable: e,
-                          builder: (_, value, child) {
-                            return Column(
-                              children: [
-                                child!,
-                                LinearProgressIndicator(
-                                  value: value,
-                                ),
-                              ],
-                            );
-                          },
-                          child: Column(
-                            children: [
-                              Text("Downloading Chunk: ${e.id}"),
-                              Text("Start: ${e.start}, End: ${e.end}"),
-                              Divider(),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-              ),
+            // if (_progress != null)
+            //   Expanded(
+            //     child: ValueListenableBuilder(
+            //       valueListenable: _progress!,
+            //       builder: (_, snapshot, __) {
+            //         if (snapshot >= 0) {
+            //           return Text(
+            //             "Creating File: ${((snapshot * 100) / _progress!.totalSize).toStringAsFixed(0)}",
+            //           );
+            //         }
+            //
+            //         return ListView(
+            //           children: _progress!.chunks.map((e) {
+            //             return ValueListenableBuilder(
+            //               valueListenable: e,
+            //               builder: (_, value, child) {
+            //                 return Column(
+            //                   children: [
+            //                     child!,
+            //                     LinearProgressIndicator(
+            //                       value: value,
+            //                     ),
+            //                   ],
+            //                 );
+            //               },
+            //               child: Column(
+            //                 children: [
+            //                   Text("Downloading Chunk: ${e.id}"),
+            //                   Text("Start: ${e.start}, End: ${e.end}"),
+            //                   Divider(),
+            //                 ],
+            //               ),
+            //             );
+            //           }).toList(),
+            //         );
+            //       },
+            //     ),
+            //   ),
           ],
         ),
       ),
@@ -251,10 +265,9 @@ class _DownloadUrlScreenState extends State<DownloadUrlScreen> {
     final savePath = path.join(dir.path, 'download-test', 'test.mp4');
 
     _progress = await FileDownloaderUtility(
-      configs: DownloadConfigs(
-        savePath: savePath,
-        url: Uri.parse(video),
-      ),
+      configs: DownloadConfigs()
+        ..savePath = savePath
+        ..url = video,
     ).download();
 
     if (mounted) {
