@@ -1,5 +1,4 @@
 import 'package:downloader/models/download_configs.dart';
-import 'package:downloader/screens/list_downloads/download_details.dart';
 import 'package:downloader/services/download_utility.dart';
 import 'package:downloader/services/extensions.dart';
 import 'package:downloader/values/constants.dart';
@@ -99,17 +98,22 @@ abstract class _DownloadUrlScreenStore with Store {
         ..value = chunkSize
         ..type = chunkType);
 
-    final result = await FileDownloaderUtility(
-      configs: configs,
+    final result = await FileDownload.fromSettings(
+      size: _urlDownloadSize!,
+      savePath: savePath!,
+      url: url,
+      chunkConfig: ChunkConfigs()
+        ..value = chunkSize
+        ..type = chunkType,
     ).download();
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DownloadDetailsScreen(
-          progress: result,
-        ),
-      ),
-    );
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(
+    //     builder: (_) => DownloadDetailsScreen(
+    //       progress: result,
+    //     ),
+    //   ),
+    // );
   }
 }

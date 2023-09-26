@@ -1,14 +1,11 @@
 import 'package:downloader/models/download_configs.dart';
 import 'package:downloader/models/download_progress.dart';
 import 'package:downloader/screens/download_url/store/download_url_screen_store.dart';
-import 'package:downloader/services/download_utility.dart';
 import 'package:downloader/services/navigation_service/navigation_service.dart';
 import 'package:downloader/views/scaffold_title.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
-import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
 class DownloadUrlScreen extends StatefulWidget {
   const DownloadUrlScreen({super.key});
@@ -245,33 +242,5 @@ class _DownloadUrlScreenState extends State<DownloadUrlScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _startDownload() async {
-    const video =
-        "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_30mb.mp4";
-
-    final dir = await getDownloadsDirectory();
-
-    if (dir == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Downloads folder not found."),
-        ),
-      );
-      return;
-    }
-
-    final savePath = path.join(dir.path, 'download-test', 'test.mp4');
-
-    _progress = await FileDownloaderUtility(
-      configs: DownloadConfigs()
-        ..savePath = savePath
-        ..url = video,
-    ).download();
-
-    if (mounted) {
-      setState(() {});
-    }
   }
 }
