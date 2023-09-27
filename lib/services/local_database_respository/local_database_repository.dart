@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:downloader/models/download_progress.dart';
-import 'package:downloader/services/download_utility.dart';
+import 'package:downloader/services/download_service/download_utility.dart';
 import 'package:isar/isar.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';

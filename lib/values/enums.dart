@@ -36,11 +36,11 @@ enum FileDownloadState {
   /// {@macro file_download_state_doc}
   downloading, // Request is downloading.
 
-  /// **This status is set when download is completed.**
-  ///
-  ///
-  /// {@macro file_download_state_doc}
-  downloaded, // Request if downloaded.
+  // /// **This status is set when download is completed.**
+  // ///
+  // ///
+  // /// {@macro file_download_state_doc}
+  // downloaded, // Request if downloaded.
 
   /// **This status is set when app starts merging cache files in single output file.
   /// It also starts cleaning of cache.
@@ -77,7 +77,6 @@ enum FileDownloadState {
 enum ChunkDownloadState {
   ideal,
   downloading,
-  downloaded,
   completed,
   error,
 }

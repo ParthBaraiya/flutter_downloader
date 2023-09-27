@@ -1,5 +1,5 @@
 import 'package:downloader/models/download_configs.dart';
-import 'package:downloader/services/download_utility.dart';
+import 'package:downloader/services/download_service/download_utility.dart';
 import 'package:downloader/services/extensions.dart';
 import 'package:downloader/values/constants.dart';
 import 'package:flutter/material.dart';

@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:downloader/models/download_configs.dart';
+import 'package:downloader/services/download_service/chunk_download_service.dart';
+import 'package:downloader/services/download_service/downloader_interface.dart';
 import 'package:downloader/values/enums.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:isar/isar.dart';
@@ -173,20 +174,69 @@ import 'package:path_provider/path_provider.dart';
 //   }
 // }
 
-class FileDownload extends ValueNotifier<FileDownloadState> {
+/// Testing Links:
+///
+/// 1 GB: https://testfile-org.mavensx.com/Japan in 8K 60fps.mp4
+/// 100 MB: https://jsoncompare.org/LearningContainer/SampleFiles/Video/MP4/Sample-Video-File-For-Testing.mp4
+
+class FileDownload extends ChangeNotifier with DirectoryProvider, Downloader {
+  //region ISAR configs
   /// isar document id.
   Id id = Isar.autoIncrement;
 
+  /// URL from where file will be downloaded.
   late String url;
+
+  /// Path where output file will be saved after download.
   late String savePath;
+
+  /// Configuration of the chunks.
   late ChunkConfigs chunkConfig;
+
+  /// Size of download file.
   late int size;
+
+  /// Number of retries each chunk can make.
   late int retries;
+
+  /// Seconds after retry should be make.
   late int retryDelay; // Retry delay in seconds.
+
+  int saveChunkAfter =
+      10000; // After 10 KB it will save the chunk in local file.
+
+  List<ChunkDownload> chunks = [];
+
+  String? cacheSaveDirectory;
+  //endregion
+
+  @ignore
+  FileDownloadState _state = FileDownloadState.ideal;
+
+  @ignore
+  FileDownloadState get state => _state;
+
+  set state(FileDownloadState newState) {
+    if (_state != newState) {
+      _state = newState;
+      notifyListeners();
+    }
+  }
+
+  @ignore
+  bool _fromDatabase = true;
+
+  @ignore
+  String get fileName => url.split("?").first.split("#").first.split("/").last;
+
+  @ignore
+  Future? _futures;
 
   /// NOTE: Avoid using this constructor. This is only for isar database usage.
   @protected
-  FileDownload() : super(FileDownloadState.ideal);
+  FileDownload() {
+    state = FileDownloadState.queued;
+  }
 
   FileDownload.fromSettings({
     required this.url,
@@ -195,7 +245,44 @@ class FileDownload extends ValueNotifier<FileDownloadState> {
     required this.size,
     this.retries = 10,
     this.retryDelay = 10,
-  }) : super(FileDownloadState.ideal);
+    this.saveChunkAfter = 10000,
+  }) : _fromDatabase = false;
+
+  /// Breaks the request in small chunks.
+  @override
+  Future<void> init() async {
+    if (size == 0) {
+      state = FileDownloadState.error;
+      return;
+    }
+
+    if (!_fromDatabase) {
+      final totalBytes = size;
+
+      final matrix = chunkConfig.calculateChunkMatrix(totalBytes);
+
+      final futures = <Future>[];
+      for (int i = 0; i < matrix.count; i++) {
+        final startByte = i * matrix.size;
+        final endByte = (i == matrix.count - 1)
+            ? totalBytes - 1
+            : startByte + matrix.size - 1;
+
+        final chunk = ChunkDownload.fromSettings(
+          start: startByte,
+          end: endByte,
+          chunkId: '$i',
+          parent: this,
+        );
+
+        futures.add(chunk.init());
+
+        chunks.add(chunk);
+      }
+
+      await futures;
+    }
+  }
 
   /// Starts the download process.
   ///
@@ -203,230 +290,77 @@ class FileDownload extends ValueNotifier<FileDownloadState> {
   ///
   /// And initiates the download process for all the chunks.
   ///
+  @override
   Future<void> download() async {
     try {
-      if (size == 0) {
-        value = FileDownloadState.error;
+      if (chunks.isEmpty) {
+        state = FileDownloadState.error;
         return;
       }
 
-      final totalBytes = size;
+      _futures = Future.wait(chunks.map((e) => e.download()));
 
-      final matrix = chunkConfig.calculateChunkMatrix(totalBytes);
-
-      // for (int i = 0; i < chunks; i++) {
-      //   final startByte = i * chunkSize;
-      //
-      //   futures.add(
-      //     _downloadChunk(
-      //       startByte,
-      //       (i == chunks - 1) ? totalBytes - 1 : startByte + chunkSize - 1,
-      //       i,
-      //     ),
-      //   );
-      // }
-      //
-      // final results = await Future.wait(futures);
-
-      final completer = Completer<File>();
-
-      // final progress = DownloadProgress()
-      //   ..chunks = results
-      //   ..totalSize = totalBytes
-      //   ..configs = configs
-      //   ..future = completer.future;
-
-      // Future.wait(results.where((e) => e.future != null).map((e) => e.future!))
-      //     .then((value) async {
-      //   final op = File(path.join(
-      //     configs.savePath,
-      //     configs.url.split("?").first.split("#").first.split("/").last,
-      //   ));
-      //
-      //   progress.value = 0;
-      //
-      //   if (!op.existsSync()) {
-      //     op.createSync(recursive: true);
-      //   }
-      //   final sink = op.openWrite();
-      //
-      //   for (final file in results) {
-      //     final stream = File(file.filePath).openRead().asBroadcastStream();
-      //
-      //     stream.listen((event) {
-      //       progress.value += event.length;
-      //     });
-      //
-      //     await sink.addStream(stream);
-      //   }
-      //
-      //   await sink.close();
-      //
-      //   results.forEach((element) {
-      //     File(element.filePath).deleteSync();
-      //   });
-      //
-      //   if (!completer.isCompleted) {
-      //     completer.complete(op);
-      //   }
-      // });
-
-      // return progress;
+      await _futures;
     } catch (e) {
       throw 'Something went wrong.';
     }
   }
 
   /// This handles the cleanup like, deleting unnecessary / merged files.
-  Future<void> clean() {
-    throw UnimplementedError();
-  }
-}
-
-// Each download progress is stored in it's separate dir.
-class ChunkDownload extends ChangeNotifier {
-  late int start;
-  late int end;
-  late String chunkId;
-  late String output;
-  late int retries;
-  late int retryDelay; // Retry delay in seconds.
-
-  /// After how many bytes it should be saved in file.
-  ///
-  int saveAfter = 1000;
-
-  ChunkDownloadState _state = ChunkDownloadState.ideal;
-
-  ChunkDownloadState get state => _state;
-
-  set state(ChunkDownloadState newState) {
-    if (newState != _state) {
-      _state = newState;
-      notifyListeners();
-    }
-  }
-
-  int _progress = 0;
-
-  int get progress => _progress;
-
-  set progress(int newProgress) {
-    if (_progress != newProgress) {
-      _progress = newProgress;
-      notifyListeners();
-    }
-  }
-
-  int get total => end - start + 1;
-
-  // @ignore
-  FileDownload? parent;
-
-  String? _chunkDir;
-
-  @protected
-  ChunkDownload();
-
-  ChunkDownload.fromSettings({
-    required this.start,
-    required this.end,
-    required this.chunkId,
-    required this.output,
-    required this.parent,
-    required this.retryDelay,
-    required this.retries,
-  });
-
-  /// Starts download of a single chunk in the API.
-  Future<void> download() async {
-    if (parent == null) {
-      throw 'No parent found.';
+  @override
+  Future<void> clean() async {
+    if (_futures == null) {
+      return;
     }
 
-    final file = await _getSaveFile();
+    await _futures!;
+    state = FileDownloadState.cleaning;
 
-    if (!file.existsSync()) {
-      file.createSync();
+    final op = File(path.join(
+      savePath,
+      fileName,
+    ));
+
+    // progress.value = 0;
+
+    if (!op.existsSync()) {
+      op.createSync(recursive: true);
     }
 
-    var saved = file.lengthSync();
+    final sink = op.openWrite();
 
-    /// If bytes stored in config is not equals to size of saved file, then there is something wrong with configs.
-    ///
-    /// If addition of start byte and downloaded bytes is > end byte that means
-    /// there is something wrong while saving the configs.
-    ///
-    /// So, download entire chunk again.
-    if (start + saved > end) {
-      saved = 0;
-      file.deleteSync();
-      file.createSync();
+    for (final chunk in chunks) {
+      final stream = (await chunk.file).openRead().asBroadcastStream();
+
+      // stream.listen((event) {
+      // progress.value += event.length;
+      // });
+
+      await sink.addStream(stream);
     }
 
-    progress = saved;
+    await sink.close();
 
-    // TODO: Update this to get start and end bytes from saved file.
-    final response = await HttpClient().getUrl(Uri.parse(parent!.url));
-
-    response.headers.add('range', 'bytes=${start + saved}-$end');
-
-    final request = await response.close();
-
-    List<List<int>> bytes = [];
-    int bytesLen = 0;
-
-    Completer? completer = null;
-
-    request.listen((event) {
-      progress += event.length; // Total downloaded length.
-
-      bytes.add(event);
-      bytesLen += event.length; // Length after last save.
-
-      if (bytesLen > math.min(10000, total) &&
-          (completer == null || completer!.isCompleted)) {
-        completer = _save(bytes);
-
-        bytes = <List<int>>[];
-        bytesLen = 0;
-      }
-    });
+    (await directory).deleteSync();
   }
 
-  Completer _save(List<List<int>> bytes) {
-    Completer completer = Completer();
-
-    _getSaveFile().then((file) {
-      if (!file.existsSync()) {
-        file.createSync();
-      }
-
-      final sink = file.openWrite(mode: FileMode.append);
-      sink.add(bytes.expand((element) => element).toList());
-      sink.close();
-    });
-
-    return completer;
-  }
-
-  Future<File> _getSaveFile() async {
-    if (_chunkDir == null) {
-      // TODO: If possible get this directory from saperate configs.
-      final cache = (await getApplicationCacheDirectory()).path;
-
-      // A directory for a single chunk.
-      final chunkDir = Directory(path.join(
-        cache,
-        path.basename(parent!.savePath),
-        '$chunkId-$start-$end-${DateTime.now().millisecondsSinceEpoch}.chunk',
-      ));
-
-      _chunkDir = chunkDir.path;
+  @override
+  Future<Directory> onFetchDirectory() async {
+    if (cacheSaveDirectory != null) {
+      return Directory(cacheSaveDirectory!);
     }
 
-    return File(path.join(_chunkDir!, dataFile));
-  }
+    // TODO: If possible get this directory from separate configs.
+    final cache = (await getApplicationCacheDirectory()).path;
 
-  static const dataFile = 'chunk.data';
+    // A directory for a single chunk.
+    final chunkDir = Directory(path.join(
+      cache,
+      path.basename(fileName),
+    ));
+
+    cacheSaveDirectory = chunkDir.path;
+
+    return chunkDir;
+  }
 }
