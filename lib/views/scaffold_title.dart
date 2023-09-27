@@ -9,6 +9,18 @@ class ScaffoldTitle extends Text {
           style: TextStyle(
             fontSize: 36,
             fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        );
+
+  ScaffoldTitle.small({
+    required String title,
+  }) : super(
+          title,
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
           ),
         );
 }

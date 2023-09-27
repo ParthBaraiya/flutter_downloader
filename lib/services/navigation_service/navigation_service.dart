@@ -1,5 +1,6 @@
 import 'package:downloader/screens/download_url/download_url_screen.dart';
 import 'package:downloader/screens/home.dart';
+import 'package:downloader/screens/list_downloads/download_details.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,18 +11,29 @@ class NavigationService {
       GoRoute(
         path: DownloadUtilScreens.home.url,
         name: DownloadUtilScreens.home.name,
+        routes: [
+          GoRoute(
+            path: DownloadUtilScreens.downloadUrl.url,
+            name: DownloadUtilScreens.downloadUrl.name,
+            pageBuilder: (_, state) {
+              return NoTransitionPage(
+                child: const DownloadUrlScreen(),
+              );
+            },
+          ),
+          GoRoute(
+            path: DownloadUtilScreens.downloads.url,
+            name: DownloadUtilScreens.downloads.name,
+            pageBuilder: (_, state) {
+              return NoTransitionPage(
+                child: const DownloadDetailsScreen(),
+              );
+            },
+          ),
+        ],
         pageBuilder: (_, state) {
           return NoTransitionPage(
             child: const Home(),
-          );
-        },
-      ),
-      GoRoute(
-        path: DownloadUtilScreens.downloadUrl.url,
-        name: DownloadUtilScreens.downloadUrl.name,
-        pageBuilder: (_, state) {
-          return NoTransitionPage(
-            child: const DownloadUrlScreen(),
           );
         },
       ),
@@ -48,13 +60,13 @@ class DownloadUtilScreen {
   });
 
   void go(BuildContext context) {
-    context.go(url);
+    context.goNamed(name);
   }
 }
 
 abstract class DownloadUtilScreens {
   static const downloadUrl = DownloadUtilScreen(
-    url: '/download-url',
+    url: 'download-url',
     name: 'Download URL',
   );
 
@@ -64,7 +76,7 @@ abstract class DownloadUtilScreens {
   );
 
   static const downloads = DownloadUtilScreen(
-    url: '/downloads',
+    url: 'downloads',
     name: 'Downloads List',
   );
 

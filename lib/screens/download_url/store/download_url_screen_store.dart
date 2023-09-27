@@ -2,6 +2,7 @@ import 'package:downloader/models/download_configs.dart';
 import 'package:downloader/services/download_service/download_utility.dart';
 import 'package:downloader/services/extensions.dart';
 import 'package:downloader/values/constants.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mobx/mobx.dart';
 
@@ -37,6 +38,24 @@ abstract class _DownloadUrlScreenStore with Store {
     return (_urlDownloadSize ?? 0.0).sizeString;
   }
 
+  @computed
+  bool get enableButton {
+    bool enableButton = true;
+
+    final url = urlController.text.trim();
+
+    if (url.isEmpty || RegExp(AppConstants.urlRegExp).hasMatch(url))
+      return false;
+
+    final chunkSize = int.tryParse(chunkSizeController.text.trim()) ?? 0;
+
+    if (chunkSize <= 0) return false;
+
+    if (savePath == null || savePath!.isEmpty) return false;
+
+    return enableButton;
+  }
+
   void onUrlUpdate(String url) async {
     final url = Uri.parse(urlController.text.trim());
 
@@ -47,63 +66,31 @@ abstract class _DownloadUrlScreenStore with Store {
 
   void onChunkUpdated(String chunk) {}
 
-  Future<void> download(BuildContext context) async {
-    final regExp = RegExp(AppConstants.urlRegExp);
-    final url = urlController.text.trim();
+  Future<void> saveLocalPath() async {
+    savePath = await FilePicker.platform.getDirectoryPath();
+  }
 
-    if (url.isEmpty || regExp.hasMatch(url)) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text('Entered url is not valid.'),
-          ),
-        );
+  void saveChunkType(ChunkTypes? value) {
+    chunkType = value ?? chunkType;
+    chunkSizeController.clear();
+  }
 
-      return;
-    }
-
-    final chunkSize = int.tryParse(chunkSizeController.text.trim()) ?? 0;
-
-    if (chunkSize <= 0) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text('Chunk size must be > 0.'),
-          ),
-        );
-
-      return;
-    }
-
-    if (savePath == null || savePath!.isEmpty) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text("Please select savePath first."),
-          ),
-        );
-
-      return;
-    }
-
-    // TODO: Add other validations.
+  Future<void> download() async {
+    if (!enableButton) return;
 
     final configs = DownloadConfigs()
       ..savePath = savePath!
-      ..url = url
+      ..url = urlController.text.trim()
       ..chunkConfig = (ChunkConfigs()
-        ..value = chunkSize
+        ..value = int.parse(chunkSizeController.text.trim())
         ..type = chunkType);
 
     final result = await FileDownload.fromSettings(
       size: _urlDownloadSize!,
       savePath: savePath!,
-      url: url,
+      url: urlController.text.trim(),
       chunkConfig: ChunkConfigs()
-        ..value = chunkSize
+        ..value = int.parse(chunkSizeController.text.trim())
         ..type = chunkType,
     ).download();
 
@@ -115,5 +102,10 @@ abstract class _DownloadUrlScreenStore with Store {
     //     ),
     //   ),
     // );
+  }
+
+  void dispose() {
+    urlController.dispose();
+    chunkSizeController.dispose();
   }
 }
